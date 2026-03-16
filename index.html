@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>成績入力管理アプリ</title>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/competti.browser.min.js"></script>
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --primary-color: #6c5ce7;
+            --accent-color: #a29bfe;
+            --text-color: #2d3436;
+        }
+
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--text-color);
+            overflow: hidden;
+        }
+
+        .app-container {
+            width: 95%;
+            max-width: 1100px;
+            height: 90vh;
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* タブスタイルの定義 */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--glass-border);
+            padding-bottom: 5px;
+        }
+
+        .tab-btn {
+            padding: 10px 25px;
+            border: none;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 12px 12px 0 0;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn.active {
+            background: var(--primary-color);
+            color: white;
+            box-shadow: 0 -4px 10px rgba(108, 92, 231, 0.2);
+        }
+
+        .tab-content {
+            display: none;
+            flex-direction: column;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: var(--primary-color);
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .btn-copy { background: var(--primary-color); color: white; }
+        .btn-reset { background: #ff7675; color: white; }
+        .btn-auth { background: white; color: var(--primary-color); border: 1px solid var(--primary-color); }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.15); filter: brightness(1.1); }
+        .btn:active { transform: translateY(0); }
+
+        .table-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .nav-btn {
+            background: white;
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+            font-size: 1.2rem;
+            color: var(--primary-color);
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: var(--primary-color);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .term-select {
+            padding: 8px 20px;
+            border-radius: 15px;
+            border: none;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: white;
+            background: #27ae60;
+            cursor: pointer;
+            outline: none;
+            box-shadow: 0 4px 10px rgba(39, 174, 96, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .term-select:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(39, 174, 96, 0.4);
+            filter: brightness(1.1);
+        }
+
+        .table-wrapper {
+            flex-grow: 1;
+            overflow: auto;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(0,0,0,0.05);
+            touch-action: none; 
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            table-layout: fixed;
+            background: white;
+        }
+
+        th, td {
+            border: 1px solid #dfe6e9;
+            padding: 0;
+            height: 40px;
+            text-align: center;
+        }
+
+        th {
+            background: #f1f2f6;
+            font-size: 0.8rem;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .col-id { width: 8px; }
+        .col-a { width: 8px; } 
+        .col-b { width: 32px; }
+        .col-score { width: 16px; }
+
+        input {
+            width: 100%;
+            height: 100%;
+            border: none;
+            padding: 0 4px;
+            box-sizing: border-box;
+            font-family: inherit;
+            font-size: 0.9rem;
+            background: transparent;
+            outline: none;
+            text-align: center;
+        }
+
+        input:focus {
+            background: rgba(108, 92, 231, 0.1);
+            box-shadow: inset 0 0 0 2px var(--primary-color);
+        }
+
+        .header-row { background: #f9f9f9; }
+        .sticky-col {
+            position: sticky;
+            left: 0;
+            background: #f1f2f6;
+            z-index: 5;
+        }
+
+        .input-cell.selected {
+            background-color: rgba(108, 92, 231, 0.15) !important;
+            box-shadow: inset 0 0 0 1px var(--primary-color);
+        }
+        table.selecting {
+            user-select: none;
+        }
+
+        .status-msg {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(45, 52, 54, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: none;
+            z-index: 100;
+        }
+
+        /* 設定パネル内のスタイル */
+        .settings-pane {
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-weight: bold;
+            color: var(--primary-color);
+            font-size: 1.1rem;
+        }
+
+        .settings-select {
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--glass-border);
+            font-family: inherit;
+            font-size: 1.3rem;
+            outline: none;
+            width: 220px;
+        }
+
+        .subject-settings-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .subject-card {
+            background: #f8f9fa;
+            border: 1px solid #dfe6e9;
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .subject-card h4 {
+            margin: 0 0 10px 0;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 4px;
+        }
+
+        .score-input-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .score-input-row label {
+            font-size: 0.9rem;
+            color: var(--text-color);
+        }
+
+        .score-input {
+            width: 60px;
+            padding: 4px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            text-align: right;
+            font-family: inherit;
+        }
+
+        /* ログインモーダルのスタイル */
+        #authModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: var(--glass-bg);
+            padding: 30px;
+            border-radius: 24px;
+            width: 90%;
+            max-width: 400px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+
+        .modal-content input {
+            background: white;
+            border: 1px solid #ddd;
+            margin: 10px 0;
+            padding: 12px;
+            border-radius: 12px;
+            height: auto;
+        }
+
+        .modal-btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .app-container { width: 98%; padding: 10px; }
+            .header h1 { font-size: 1.2rem; }
+            .col-b { width: 44px; }
+            .col-score { width: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="tabs">
+        <button class="tab-btn" onclick="switchTab('settings')">設定</button>
+        <button class="tab-btn active" onclick="switchTab('entry')">テスト入力</button>
+    </div>
+
+    <div id="tab-settings" class="tab-content">
+        <div class="settings-pane">
+            <h2>アプリ設定</h2>
+            <div class="form-group">
+                <label for="gradeSelector">学年設定</label>
+                <select id="gradeSelector" class="settings-select">
+                    <option value="1">1年生</option>
+                    <option value="2">2年生</option>
+                    <option value="3">3年生</option>
+                    <option value="4">4年生</option>
+                    <option value="5">5年生</option>
+                    <option value="6">6年生</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>分類（教科別配点設定）</label>
+                <div id="subjectSettingsList" class="subject-settings-container">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-entry" class="tab-content active">
+        <div class="header">
+            <h1>成績管理シート</h1>
+            <div class="toolbar">
+                <button id="authBtn" class="btn btn-auth" onclick="toggleAuthModal()">🔑 ログイン</button>
+                <button class="btn btn-copy" onclick="copyTableData()">📋 スプレッドシート用にコピー</button>
+                <button class="btn btn-reset" onclick="resetApp()">🔄 リセット</button>
+            </div>
+        </div>
+
+        <div class="table-controls">
+            <button id="prevBtn" class="nav-btn" onclick="moveColumns(-1)" title="左に移動">←</button>
+            <span id="colRangeInfo" style="font-weight: bold; color: var(--primary-color);">C〜H列を表示中</span>
+            <select id="termSelector" class="term-select">
+                <option>1学期</option>
+                <option>2学期</option>
+                <option>3学期</option>
+            </select>
+            <button id="nextBtn" class="nav-btn" onclick="moveColumns(1)" title="右に移動">→</button>
+        </div>
+
+        <div class="table-wrapper">
+            <table id="gradeTable">
+                <thead>
+                    <tr id="headerRow" class="header-row">
+                        </tr>
+                </thead>
+                <tbody id="tableBody">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="authModal">
+    <div class="modal-content">
+        <h2 id="modalTitle">ログイン / 新規登録</h2>
+        <input type="email" id="emailInput" placeholder="メールアドレス">
+        <input type="password" id="passwordInput" placeholder="パスワード（6文字以上）">
+        <div class="modal-btn-group">
+            <button class="btn btn-copy" onclick="handleEmailLogin()">ログイン</button>
+            <button class="btn btn-auth" onclick="handleEmailRegister()">新規登録</button>
+            <button class="btn btn-reset" style="background:#636e72" onclick="toggleAuthModal()">閉じる</button>
+        </div>
+    </div>
+</div>
+
+<div id="statusMsg" class="status-msg">コピーしました！</div>
+
+<audio id="soundCorrect" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
+<audio id="soundError" src="https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3"></audio>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-firestore.js";
+
+    // --- 【重要】ここに「成績一覧表」プロジェクトのConfigを貼り付けてください ---
+    const firebaseConfig = {
+        apiKey: "AIzaSy...",
+        authDomain: "seiseki-itiranhyo.firebaseapp.com",
+        projectId: "seiseki-itiranhyo",
+        storageBucket: "seiseki-itiranhyo.firebasestorage.app",
+        messagingSenderId: "...",
+        appId: "..."
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const appId = 'seiseki-itiranhyo-app';
+
+    const tableBody = document.getElementById('tableBody');
+    const headerRow = document.getElementById('headerRow');
+    const statusMsg = document.getElementById('statusMsg');
+    const soundCorrect = document.getElementById('soundCorrect');
+    const termSelector = document.getElementById('termSelector');
+    const gradeSelector = document.getElementById('gradeSelector');
+    const subjectSettingsList = document.getElementById('subjectSettingsList');
+    
+    const studentCount = 40; 
+    const headerRowsCount = 3; 
+    const rowCount = studentCount + headerRowsCount + 2; 
+    
+    let startColIdx = 2; 
+    const visibleColsCount = 6; 
+    const totalCols = 200; 
+
+    let isSelecting = false;
+    let startCell = null;
+    let endCell = null;
+
+    let cellDataStorage = {};
+    let manualEditFlags = {}; 
+    let lastUser = null;
+    let isLocalUpdate = false;
+    let unsubscribeSnapshot = null;
+
+    let subjectSettings = {
+        "国語": { "知識": "100", "思考": "100" },
+        "社会": { "知識": "100", "思考": "50" },
+        "算数": { "知識": "100", "思考": "50" },
+        "理科": { "知識": "100", "思考": "50" },
+        "生活": { "知識": "100", "思考": "50" }
+    };
+
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+        if (tabName === 'settings') {
+            document.getElementById('tab-settings').classList.add('active');
+            document.querySelector('.tab-btn:nth-child(1)').classList.add('active');
+            renderSubjectSettings();
+        } else {
+            document.getElementById('tab-entry').classList.add('active');
+            document.querySelector('.tab-btn:nth-child(2)').classList.add('active');
+        }
+    }
+
+    function renderSubjectSettings() {
+        const grade = parseInt(gradeSelector.value);
+        let subjectsToShow = grade <= 2 ? ["国語", "算数", "生活"] : ["国語", "社会", "算数", "理科"];
+
+        subjectSettingsList.innerHTML = '';
+        subjectsToShow.forEach(sj => {
+            const card = document.createElement('div');
+            card.className = 'subject-card';
+            card.innerHTML = `
+                <h4>${sj}</h4>
+                <div class="score-input-row"><label>知識</label><input type="number" class="score-input" data-sj="${sj}" data-asp="知識" value="${subjectSettings[sj]["知識"]}"></div>
+                <div class="score-input-row"><label>思考</label><input type="number" class="score-input" data-sj="${sj}" data-asp="思考" value="${subjectSettings[sj]["思考"]}"></div>
+            `;
+            card.querySelectorAll('input').forEach(inp => {
+                inp.addEventListener('input', (e) => {
+                    subjectSettings[e.target.dataset.sj][e.target.dataset.asp] = e.target.value;
+                    autoSave();
+                });
+            });
+            subjectSettingsList.appendChild(card);
+        });
+    }
+
+    function getColName(index) {
+        let name = ""; let i = index;
+        while (i >= 0) { name = String.fromCharCode((i % 26) + 65) + name; i = Math.floor(i / 26) - 1; }
+        return name;
+    }
+
+    function getColIndex(name) {
+        let res = 0;
+        for (let i = 0; i < name.length; i++) { res = res * 26 + (name.charCodeAt(i) - 64); }
+        return res - 1;
+    }
+
+    let saveTimeout;
+    function autoSave() {
+        if (!lastUser) return;
+        isLocalUpdate = true;
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(async () => {
+            try {
+                const stateRef = doc(db, 'artifacts', appId, 'users', lastUser.uid);
+                await setDoc(stateRef, { cellDataStorage, manualEditFlags, startColIdx, term: termSelector.value, grade: gradeSelector.value, subjectSettings, updatedAt: new Date() });
+                setTimeout(() => { isLocalUpdate = false; }, 500);
+            } catch (err) { console.error("保存失敗:", err); isLocalUpdate = false; }
+        }, 1000);
+    }
+
+    function updateAverages() {
+        const avgRow = rowCount - 1;
+        const combinedAvgRow = rowCount;
+
+        for (let j = 0; j < visibleColsCount; j++) {
+            const colIdx = startColIdx + j; const colName = getColName(colIdx);
+            let sum = 0; let count = 0;
+            for (let r = headerRowsCount + 1; r <= studentCount + headerRowsCount; r++) {
+                const val = parseFloat(cellDataStorage[`${r}-${colName}`]);
+                if (!isNaN(val)) { sum += val; count++; }
+            }
+            const avg = count > 0 ? (sum / count).toFixed(1) : "";
+            const avgInput = document.querySelector(`.input-cell[data-row="${avgRow}"][data-col="${colName}"]`);
+            if (avgInput) avgInput.value = avg;
+        }
+
+        for (let j = 0; j < visibleColsCount; j += 2) {
+            const colIdx = startColIdx + j; const nextIdx = colIdx + 1;
+            const colName = getColName(colIdx); const nextColName = getColName(nextIdx);
+            const c3 = parseFloat(cellDataStorage[`3-${colName}`]) || 0;
+            const d3 = parseFloat(cellDataStorage[`3-${nextColName}`]) || 0;
+            const avg1Input = document.querySelector(`.input-cell[data-row="${avgRow}"][data-col="${colName}"]`);
+            const avg2Input = document.querySelector(`.input-cell[data-row="${avgRow}"][data-col="${nextColName}"]`);
+            const combinedAvgInput = document.querySelector(`.input-cell[data-row="${combinedAvgRow}"][data-col="${colName}"]`);
+            
+            if (combinedAvgInput) {
+                const avg1 = avg1Input ? parseFloat(avg1Input.value) : NaN;
+                const avg2 = avg2Input ? parseFloat(avg2Input.value) : NaN;
+                if (!isNaN(avg1) && !isNaN(avg2) && (c3 + d3) > 0) {
+                    combinedAvgInput.value = ((avg1 + avg2) * 100 / (c3 + d3)).toFixed(1);
+                } else combinedAvgInput.value = "";
+            }
+        }
+    }
+
+    function toggleAuthModal() {
+        const modal = document.getElementById('authModal');
+        if (lastUser && !lastUser.isAnonymous) {
+            if (confirm("ログアウトしますか？")) signOut(auth);
+        } else modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
+    }
+
+    async function handleEmailRegister() {
+        const email = document.getElementById('emailInput').value;
+        const pass = document.getElementById('passwordInput').value;
+        try { await createUserWithEmailAndPassword(auth, email, pass); toggleAuthModal(); showStatus("新規登録完了"); } catch (err) { alert(err.message); }
+    }
+
+    async function handleEmailLogin() {
+        const email = document.getElementById('emailInput').value;
+        const pass = document.getElementById('passwordInput').value;
+        try { await signInWithEmailAndPassword(auth, email, pass); toggleAuthModal(); showStatus("ログイン完了"); } catch (err) { alert(err.message); }
+    }
+
+    async function initTable() {
+        onAuthStateChanged(auth, async (u) => {
+            if (unsubscribeSnapshot) unsubscribeSnapshot();
+            if (!u) { await signInAnonymously(auth); return; }
+            lastUser = u;
+            document.getElementById('authBtn').textContent = u.isAnonymous ? "🔑 ログイン" : "🚪 ログアウト";
+            const stateRef = doc(db, 'artifacts', appId, 'users', u.uid);
+            unsubscribeSnapshot = onSnapshot(stateRef, (snap) => {
+                if (snap.exists() && !isLocalUpdate) {
+                    const data = snap.data();
+                    cellDataStorage = data.cellDataStorage || {};
+                    manualEditFlags = data.manualEditFlags || {};
+                    startColIdx = data.startColIdx || 2;
+                    termSelector.value = data.term || "1学期";
+                    gradeSelector.value = data.grade || "1";
+                    subjectSettings = data.subjectSettings || subjectSettings;
+                    renderSubjectSettings(); renderTable();
+                } else if (!snap.exists()) {
+                    cellDataStorage["1-C"] = "算数：知識"; cellDataStorage["3-C"] = "100";
+                    cellDataStorage["1-D"] = "算数：思考"; cellDataStorage["3-D"] = "50";
+                    renderSubjectSettings(); renderTable();
+                }
+            });
+            setupSwipeGestures();
+        });
+    }
+
+    function renderTable() {
+        headerRow.innerHTML = '<th class="col-id"></th><th class="col-a">A</th><th class="col-b">B</th>';
+        headerRow.children[2].style.borderRight = "2px solid red";
+        for (let i = 0; i < visibleColsCount; i++) {
+            const colIdx = startColIdx + i; const th = document.createElement('th');
+            th.className = 'col-score'; th.textContent = getColName(colIdx);
+            if (colIdx % 2 !== 0) th.style.borderRight = "2px solid red";
+            headerRow.appendChild(th);
+        }
+
+        tableBody.innerHTML = '';
+        for (let i = 1; i <= rowCount; i++) {
+            const tr = document.createElement('tr');
+            if ([3, 8, 13, 18, 23, 28, 33, 38, 43].includes(i)) tr.style.borderBottom = "2px solid black";
+
+            const tdId = document.createElement('td');
+            tdId.className = 'sticky-col col-id'; tdId.textContent = i;
+            if (i <= 2) { tdId.style.top = (i * 40) + "px"; tdId.style.zIndex = "11"; }
+            tr.appendChild(tdId);
+
+            if (i <= headerRowsCount) {
+                const tdMerged = document.createElement('td'); tdMerged.colSpan = 2; tdMerged.style.borderRight = "2px solid red";
+                let val = i === 1 ? (cellDataStorage[`${i}-AB`] || "分類") : (i === 2 ? (cellDataStorage[`${i}-AB`] || "タイトル") : (cellDataStorage[`${i}-AB`] || "配点設定"));
+                if (i <= 2) { tdMerged.style.position = 'sticky'; tdMerged.style.top = (i * 40) + "px"; tdMerged.style.zIndex = "8"; tdMerged.style.backgroundColor = "white"; }
+                tdMerged.innerHTML = `<input type="text" class="input-cell" data-row="${i}" data-col="AB" value="${val}" style="text-align: center; font-size: 1.35rem; font-weight: bold; color: var(--primary-color);">`;
+                tr.appendChild(tdMerged);
+            } else if (i >= rowCount - 1) {
+                const tdMerged = document.createElement('td'); tdMerged.colSpan = 2; tdMerged.style.borderRight = "2px solid red";
+                const label = i === rowCount - 1 ? "平均点" : "テスト平均点";
+                const color = i === rowCount - 1 ? "blue" : "red";
+                tdMerged.innerHTML = `<input type="text" class="input-cell" data-row="${i}" data-col="AB" value="${label}" readonly style="text-align: center; font-size: 1.35rem; font-weight: bold; color: ${color};">`;
+                tr.appendChild(tdMerged);
+            } else {
+                const aVal = cellDataStorage[`${i}-A`] !== undefined ? cellDataStorage[`${i}-A`] : (i - headerRowsCount);
+                tr.innerHTML += `<td class="col-a"><input type="text" class="input-cell" data-row="${i}" data-col="A" value="${aVal}"></td>`;
+                const bVal = cellDataStorage[`${i}-B`] || "";
+                tr.innerHTML += `<td class="col-b" style="border-right: 2px solid red;"><input type="text" class="input-cell cell-name" data-row="${i}" data-col="B" value="${bVal}" placeholder="名前を入力"></td>`;
+            }
+
+            for (let j = 0; j < visibleColsCount; j++) {
+                const colIdx = startColIdx + j; const colName = getColName(colIdx);
+                const td = document.createElement('td'); td.className = 'col-score';
+                if (colIdx % 2 !== 0) td.style.borderRight = "2px solid red";
+
+                let defaultVal = cellDataStorage[`${i}-${colName}`] || "";
+                let style = ""; let readonly = "";
+                if (i === 3) style = 'style="color: #ff0000; font-size: 1.2rem; font-weight: bold;"';
+                else if (i === rowCount - 1) { style = 'style="color: blue; font-size: 1.35rem; font-weight: bold;"'; readonly = 'readonly'; }
+                else if (i === rowCount) {
+                    if (j % 2 === 0) { td.colSpan = 2; style = 'style="color: red; font-size: 1.35rem; font-weight: bold;"'; readonly = 'readonly'; if ((colIdx + 1) % 2 !== 0) td.style.borderRight = "2px solid red"; }
+                    else continue;
+                }
+                if (i <= 2) { td.style.position = 'sticky'; td.style.top = (i * 40) + "px"; td.style.zIndex = "8"; td.style.backgroundColor = "white"; }
+                
+                if (i === 1) {
+                    const grade = parseInt(gradeSelector.value);
+                    const subjects = grade <= 2 ? ["国語", "算数", "生活"] : ["国語", "社会", "算数", "理科"];
+                    let options = '<option value=""></option>';
+                    subjects.forEach(sj => {
+                        options += `<option value="${sj}：知識" ${defaultVal === sj + "：知識" ? "selected" : ""}>${sj}：知識</option>`;
+                        options += `<option value="${sj}：思考" ${defaultVal === sj + "：思考" ? "selected" : ""}>${sj}：思考</option>`;
+                    });
+                    td.innerHTML = `<select class="input-cell" data-row="${i}" data-col="${colName}" style="width: 100%; height: 100%; border: none; background: transparent; font-family: inherit; font-size: 0.8rem; text-align: center; outline: none; cursor: pointer;">${options}</select>`;
+                } else {
+                    td.innerHTML = `<input type="text" class="input-cell ${i > headerRowsCount && i < rowCount - 1 ? 'cell-score' : ''}" data-row="${i}" data-col="${colName}" value="${defaultVal}" ${style} ${readonly}>`;
+                }
+                tr.appendChild(td);
+            }
+            tableBody.appendChild(tr);
+        }
+        updateNavUI(); attachEventListeners(); updateAverages();
+    }
+
+    function moveColumns(dir) {
+        const nextIdx = startColIdx + dir;
+        if (nextIdx >= 2 && nextIdx + visibleColsCount <= totalCols) { startColIdx = nextIdx; renderTable(); autoSave(); }
+    }
+
+    function setupSwipeGestures() {
+        const wrapper = document.querySelector('.table-wrapper');
+        let startX = 0; let isDragging = false; let lastMoveTime = 0;
+        wrapper.addEventListener('wheel', (e) => {
+            if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+                e.preventDefault(); const now = Date.now();
+                if (now - lastMoveTime > 300 && Math.abs(e.deltaX) > 10) { moveColumns(e.deltaX > 0 ? 1 : -1); lastMoveTime = now; }
+            }
+        }, { passive: false });
+        const handleStart = (clientX) => { startX = clientX; isDragging = true; };
+        const handleEnd = (clientX) => { if (!isDragging) return; const diff = startX - clientX; if (Math.abs(diff) > 60) moveColumns(diff > 0 ? 1 : -1); isDragging = false; };
+        wrapper.addEventListener('mousedown', (e) => { if (e.target.tagName !== 'INPUT') { handleStart(e.clientX); wrapper.style.cursor = 'grabbing'; } });
+        window.addEventListener('mouseup', (e) => { handleEnd(e.clientX); wrapper.style.cursor = 'default'; });
+        wrapper.addEventListener('touchstart', (e) => { if (e.target.tagName !== 'SELECT') handleStart(e.touches[0].clientX); }, {passive: true});
+        wrapper.addEventListener('touchend', (e) => { handleEnd(e.changedTouches[0].clientX); }, {passive: true});
+    }
+
+    function updateNavUI() {
+        document.getElementById('prevBtn').disabled = (startColIdx <= 2);
+        document.getElementById('nextBtn').disabled = (startColIdx + visibleColsCount >= totalCols);
+        const startName = getColName(startColIdx); const endName = getColName(startColIdx + visibleColsCount - 1);
+        document.getElementById('colRangeInfo').textContent = `${startName}〜${endName}列を表示中`;
+    }
+
+    function attachEventListeners() {
+        const inputs = document.querySelectorAll('.input-cell');
+        inputs.forEach(input => {
+            input.addEventListener('input', (e) => {
+                const r = parseInt(input.dataset.row); const c = input.dataset.col; const key = `${r}-${c}`;
+                cellDataStorage[key] = e.target.value;
+                if (r > headerRowsCount && r < rowCount - 1 && input.classList.contains('cell-score')) manualEditFlags[key] = true;
+
+                if (r === 1 && c !== 'AB' && c !== 'A' && c !== 'B') {
+                    const scoreInp = document.querySelector(`.input-cell[data-row="3"][data-col="${c}"]`);
+                    let newVal = "";
+                    if (e.target.value.includes('：')) { const parts = e.target.value.split('：'); const sj = parts[0]; const asp = parts[1]; if (subjectSettings[sj]) newVal = subjectSettings[sj][asp]; }
+                    if (newVal !== "") {
+                        if (scoreInp) scoreInp.value = newVal; cellDataStorage[`3-${c}`] = newVal;
+                        for (let row = headerRowsCount + 1; row <= studentCount + headerRowsCount; row++) {
+                            const skey = `${row}-${c}`; if (manualEditFlags[skey]) continue;
+                            if ((cellDataStorage[`${row}-B`] || "").trim() !== "") {
+                                const stInp = document.querySelector(`.input-cell[data-row="${row}"][data-col="${c}"]`);
+                                if (stInp) stInp.value = newVal; cellDataStorage[skey] = newVal;
+                            }
+                        }
+                    }
+                }
+                updateAverages(); autoSave();
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (input.tagName === 'SELECT') return;
+                const r = parseInt(input.dataset.row); const c = input.dataset.col;
+                let nr = r; let nc = c;
+                if (e.key === 'Enter' || e.key === 'ArrowDown') { e.preventDefault(); nr++; }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); nr--; }
+                else if (e.key === 'ArrowRight') { e.preventDefault(); if (c === 'A') nc = 'B'; else if (c === 'B' || c === 'AB') nc = getColName(startColIdx); else { const idx = getColIndex(c); if (idx + 1 >= startColIdx + visibleColsCount) moveColumns(1); nc = getColName(idx + 1); } }
+                else if (e.key === 'ArrowLeft') { e.preventDefault(); if (c === 'B') nc = 'A'; else if (c !== 'A' && c !== 'AB') { const idx = getColIndex(c); if (idx === startColIdx) { if (startColIdx > 2) { moveColumns(-1); nc = getColName(idx - 1); } else nc = 'B'; } else nc = getColName(idx - 1); } }
+                if (nr !== r || nc !== c) {
+                    const sel = nc === 'AB' ? `.input-cell[data-row="${nr}"][data-col=\"AB\"]` : `.input-cell[data-row="${nr}"][data-col="${nc}"]`;
+                    const nInp = document.querySelector(sel); if (nInp) { nInp.focus(); if (nInp.select) nInp.select(); } else if (nr > rowCount) showSuccess();
+                }
+            });
+
+            input.addEventListener('mousedown', (e) => {
+                isSelecting = true; startCell = { r: parseInt(input.dataset.row), c: input.dataset.col };
+                if (!e.shiftKey) document.querySelectorAll('.input-cell.selected').forEach(el => el.classList.remove('selected'));
+                input.classList.add('selected'); document.getElementById('gradeTable').classList.add('selecting');
+            });
+
+            input.addEventListener('mouseenter', () => {
+                if (isSelecting) {
+                    const end = { r: parseInt(input.dataset.row), c: input.dataset.col };
+                    document.querySelectorAll('.input-cell.selected').forEach(el => el.classList.remove('selected'));
+                    const minR = Math.min(startCell.r, end.r); const maxR = Math.max(startCell.r, end.r);
+                    for (let row = minR; row <= maxR; row++) {
+                        const target = document.querySelector(`.input-cell[data-row="${row}"][data-col="${end.c}"]`);
+                        if (target) target.classList.add('selected');
+                    }
+                }
+            });
+        });
+    }
+
+    termSelector.addEventListener('change', autoSave);
+    gradeSelector.addEventListener('change', () => { renderSubjectSettings(); renderTable(); autoSave(); });
+
+    function copyTableData() {
+        const rows = document.querySelectorAll('#gradeTable tr'); let tsv = "";
+        rows.forEach((row, i) => { if (i === 0) return; const rowData = []; row.querySelectorAll('input, select').forEach(inp => rowData.push(inp.value)); tsv += rowData.join('\t') + '\n'; });
+        const temp = document.createElement('textarea'); temp.value = tsv; document.body.appendChild(temp); temp.select(); document.execCommand('copy'); document.body.removeChild(temp);
+        showStatus("全データをコピーしました");
+    }
+
+    function showStatus(msg) { statusMsg.textContent = msg; statusMsg.style.display = 'block'; setTimeout(() => { statusMsg.style.display = 'none'; }, 3000); }
+
+    async function resetApp() {
+        if (confirm("リセットしますか？")) {
+            cellDataStorage = {}; manualEditFlags = {}; startColIdx = 2; termSelector.value = "1学期"; gradeSelector.value = "1";
+            if (lastUser) {
+                const stateRef = doc(db, 'artifacts', appId, 'users', lastUser.uid);
+                await setDoc(stateRef, { cellDataStorage: {}, manualEditFlags: {}, updatedAt: new Date() });
+            }
+            renderSubjectSettings(); renderTable(); showStatus("リセット完了");
+        }
+    }
+
+    function showSuccess() { soundCorrect.play(); confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); }
+
+    window.copyTableData = copyTableData; window.resetApp = resetApp; window.moveColumns = moveColumns;
+    window.switchTab = switchTab; window.toggleAuthModal = toggleAuthModal;
+    window.handleEmailLogin = handleEmailLogin; window.handleEmailRegister = handleEmailRegister;
+    window.onload = initTable;
+</script>
+
+</body>
+</html>
